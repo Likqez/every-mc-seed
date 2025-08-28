@@ -2,12 +2,13 @@ import React from "react";
 import styled from "styled-components";
 import Header from "../Header/Header";
 import Scrollbar from "../Scrollbar/Scrollbar";
-import { MAX_UUID } from "../../../lib/constants";
-import UUIDDisplay from "../UUIDDisplay/UUIDDisplay";
+import { MAX_SEED_INDEX } from "../../../lib/constants";
+import SeedDisplay from "../SeedDisplay/SeedDisplay";
 import SearchWidget from "../SearchWidget/SearchWidget";
 import FavoritesWidget from "../FavoritesWidget";
-import { indexToUUID, uuidToIndex } from "../../../lib/uuidTools";
+import { indexToSeed, seedToIndex } from "../../../lib/seedTools";
 import JokeOverlay from "../JokeOverlay/JokeOverlay";
+
 const Wrapper = styled.div`
   display: flex;
   flex-direction: row;
@@ -45,9 +46,9 @@ function App() {
   const [showFavorites, _setShowFavorites] = React.useState(false);
   const animationRef = React.useRef(null);
 
-  const [favedUUIDs, setFavedUUIDs] = React.useState(
-    localStorage.getItem("favedUUIDs")
-      ? JSON.parse(localStorage.getItem("favedUUIDs"))
+  const [favedSeeds, setFavedSeeds] = React.useState(
+    localStorage.getItem("favedSeeds")
+      ? JSON.parse(localStorage.getItem("favedSeeds"))
       : {}
   );
 
@@ -62,27 +63,28 @@ function App() {
   const MAX_POSITION = React.useMemo(() => {
     if (showFavorites) {
       const itemsToShowBig = BigInt(itemsToShow);
-      const favedUUIDsLength = BigInt(Object.keys(favedUUIDs).length);
-      if (favedUUIDsLength > itemsToShowBig) {
-        return favedUUIDsLength - itemsToShowBig;
+      const favedSeedsLength = BigInt(Object.keys(favedSeeds).length);
+      if (favedSeedsLength > itemsToShowBig) {
+        return favedSeedsLength - itemsToShowBig;
       }
       return 0n;
-    } else return MAX_UUID - BigInt(itemsToShow);
-  }, [itemsToShow, showFavorites, favedUUIDs]);
+    } else return MAX_SEED_INDEX - BigInt(itemsToShow);
+  }, [itemsToShow, showFavorites, favedSeeds]);
 
-  const toggleFavedUUID = (uuid) => {
-    setFavedUUIDs((prev) => {
-      const prevValue = prev[uuid] || false;
+  const toggleFavedSeed = (seed) => {
+    setFavedSeeds((prev) => {
+      const seedKey = seed.toString(); // Convert BigInt to string for storage
+      const prevValue = prev[seedKey] || false;
       const newValue = !prevValue;
-      const newFavedUUIDs = { ...prev };
+      const newFavedSeeds = { ...prev };
       if (newValue) {
-        newFavedUUIDs[uuid] = true;
+        newFavedSeeds[seedKey] = true;
       } else {
-        delete newFavedUUIDs[uuid];
+        delete newFavedSeeds[seedKey];
       }
 
-      localStorage.setItem("favedUUIDs", JSON.stringify(newFavedUUIDs));
-      return newFavedUUIDs;
+      localStorage.setItem("favedSeeds", JSON.stringify(newFavedSeeds));
+      return newFavedSeeds;
     });
   };
 
@@ -136,18 +138,19 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAnimating, targetPosition]);
 
-  const displayedUUIDs = React.useMemo(() => {
+  const displayedSeeds = React.useMemo(() => {
     if (showFavorites) {
-      const allUUIDs = Object.keys(favedUUIDs)
-        .map((uuid) => {
-          const index = uuidToIndex(uuid);
+      const allSeeds = Object.keys(favedSeeds)
+        .map((seedStr) => {
+          const seed = BigInt(seedStr);
+          const index = seedToIndex(seed);
           if (index === null) {
-            console.error("no index", uuid);
+            console.error("no index", seed);
             return null;
           }
           return {
             index,
-            uuid,
+            seed,
           };
         })
         .filter((item) => item !== null)
@@ -162,31 +165,32 @@ function App() {
       if (startIndex > MAX_POSITION) {
         startIndex = MAX_POSITION;
       }
-      return allUUIDs.slice(Number(startIndex), Number(endIndex));
+      return allSeeds.slice(Number(startIndex), Number(endIndex));
     }
     return Array.from({ length: itemsToShow }, (_, i) => {
       const index = virtualPosition + BigInt(i);
       if (index < 0n) {
         return null;
       }
-      if (index > MAX_UUID) {
+      if (index > MAX_SEED_INDEX) {
         return null;
       }
-      const uuid = indexToUUID(index);
-      if (!uuid) {
-        console.error("no uuid", index);
+      const seed = indexToSeed(index);
+      if (!seed && seed !== 0n) {
+        console.error("no seed", index);
         return null;
       }
-      return { index, uuid };
+      return { index, seed };
     });
-  }, [virtualPosition, itemsToShow, showFavorites, favedUUIDs, MAX_POSITION]);
+  }, [virtualPosition, itemsToShow, showFavorites, favedSeeds, MAX_POSITION]);
 
-  const firstUuid = React.useMemo(() => {
+  const firstSeed = React.useMemo(() => {
     if (showFavorites) {
-      return Object.keys(favedUUIDs)[0];
+      const firstSeedStr = Object.keys(favedSeeds)[0];
+      return firstSeedStr ? BigInt(firstSeedStr) : null;
     }
-    return indexToUUID(virtualPosition);
-  }, [virtualPosition, showFavorites, favedUUIDs]);
+    return indexToSeed(virtualPosition);
+  }, [virtualPosition, showFavorites, favedSeeds]);
 
   const [browserHash, setBrowserHash] = React.useState(null);
 
@@ -211,7 +215,7 @@ function App() {
 
   return (
     <>
-      {hashContainsTheo && <JokeOverlay firstUuid={firstUuid} />}
+      {hashContainsTheo && <JokeOverlay firstSeed={firstSeed} />}
       <SearchWidget
         animateToPosition={animateToPosition}
         virtualPosition={virtualPosition}
@@ -220,7 +224,7 @@ function App() {
         setSearch={setSearch}
         searchDisplayed={searchDisplayed}
         setSearchDisplayed={setSearchDisplayed}
-        displayedUUIDs={displayedUUIDs}
+        displayedSeeds={displayedSeeds}
         MAX_POSITION={MAX_POSITION}
       />
       <FavoritesWidget
@@ -231,27 +235,27 @@ function App() {
         <HeaderAndContent>
           <Header />
           <Content>
-            <UUIDDisplay
+            <SeedDisplay
               itemsToShow={itemsToShow}
               setItemsToShow={setItemsToShow}
               virtualPosition={virtualPosition}
               setVirtualPosition={setVirtualPosition}
-              favedUUIDs={favedUUIDs}
-              toggleFavedUUID={toggleFavedUUID}
+              favedSeeds={favedSeeds}
+              toggleFavedSeed={toggleFavedSeed}
               isAnimating={isAnimating}
               MAX_POSITION={MAX_POSITION}
               animateToPosition={animateToPosition}
               search={search}
               searchDisplayed={searchDisplayed}
-              displayedUUIDs={displayedUUIDs}
+              displayedSeeds={displayedSeeds}
             />
           </Content>
         </HeaderAndContent>
         <Scrollbar
           virtualPosition={virtualPosition}
+          setVirtualPosition={setVirtualPosition}
           MAX_POSITION={MAX_POSITION}
           animateToPosition={animateToPosition}
-          setVirtualPosition={setVirtualPosition}
           setIsAnimating={setIsAnimating}
         />
       </Wrapper>

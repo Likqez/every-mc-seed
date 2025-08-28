@@ -1,4 +1,5 @@
-# Every UUID Dot Com
-A searchable list of every UUID, just in case you've forgotten one and need to look it up.
+# Every Minecraft Seed
 
-Find it at [everyuuid.com](https://everyuuid.com)
+Explore all 18.4 quintillion Minecraft seeds at [everymcseed.com](https://everymcseed.com)
+
+Based on the original [everyuuid.com](https://everyuuid.com) project by [eieio](https://github.com/nolenroyalty).

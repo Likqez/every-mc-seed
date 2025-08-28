@@ -5,10 +5,12 @@ import {
   querySmallScreen,
 } from "../../../lib/constants";
 import { Code, Twitter, Bsky, Help } from "../Icons/Icons";
+
 const SUBHEADS = [
-  "In case you forgot one",
-  "Scroll till you find a good one",
-  "Well, only the V4 ones",
+  "Explore all 18.4 quintillion worlds",
+  "Find your perfect Minecraft seed",
+  "Every possible world, catalogued",
+  "Scroll till you find the one",
 ];
 
 const Wrapper = styled.header`
@@ -120,36 +122,68 @@ const V4Small = styled.sup`
 `;
 
 function Header() {
-  const subhead = React.useMemo(() => {
-    return SUBHEADS[Math.floor(Math.random() * SUBHEADS.length)];
+  const [subheadIndex, setSubheadIndex] = React.useState(0);
+
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setSubheadIndex((prev) => (prev + 1) % SUBHEADS.length);
+    }, 6000);
+    return () => clearInterval(interval);
   }, []);
 
   return (
     <Wrapper>
       <TitleSubhead>
-        <TitleLink href="/">
-          <Title>Every UUID Dot Com</Title>
-        </TitleLink>
-        <Subhead>{subhead}</Subhead>
+        <Title>
+          <TitleLink href="/" rel="noopener">
+            Every Minecraft Seed
+          </TitleLink>
+        </Title>
+        <Subhead>{SUBHEADS[subheadIndex]}</Subhead>
       </TitleSubhead>
       <SelfPromotion>
-        <Socials>
-          <SocialLink href="https://eieio.games/blog/writing-down-every-uuid">
-            <Help />
-          </SocialLink>
-          <SocialLink href="https://github.com/nolenroyalty/every-uuid">
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <SocialLink
+            href="https://github.com/Likqez/every-mc-seed"
+            target="_blank"
+            rel="noopener"
+            title="View source code"
+          >
             <Code />
           </SocialLink>
-          <SocialLink href="https://twitter.com/itseieio">
+          <SocialLink
+            href="https://twitter.com/intent/tweet?text=Check%20out%20Every%20Minecraft%20Seed%20-%20explore%20all%2018.4%20quintillion%20possible%20worlds!&url=https://everymcseed.com"
+            target="_blank"
+            rel="noopener"
+            title="Share on Twitter"
+          >
             <Twitter />
           </SocialLink>
-          <SocialLink href="https://bsky.app/profile/itseieio.bsky.social">
+          <SocialLink
+            href="https://bsky.app/intent/compose?text=Check%20out%20Every%20Minecraft%20Seed%20-%20explore%20all%2018.4%20quintillion%20possible%20worlds!%20https://everymcseed.com"
+            target="_blank"
+            rel="noopener"
+            title="Share on Bluesky"
+          >
             <Bsky />
           </SocialLink>
-        </Socials>
-        <p>
-          A website by <Link href="https://eieio.games">eieio</Link>
-        </p>
+        </div>
+          <p style={{
+              fontSize: "0.8rem",
+              textAlign: "right",
+          }}>
+              Support{' '}
+              <Link href="https://minecraftathome.com"
+              target="_blank"
+              rel="noopener">MC@Home</Link>
+              {' '}--
+              Credits to <Link
+              href="https://github.com/nolenroyalty"
+              target="_blank"
+              rel="noopener"
+          >eieio
+          </Link>
+          </p>
       </SelfPromotion>
     </Wrapper>
   );

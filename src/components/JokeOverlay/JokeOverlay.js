@@ -29,14 +29,17 @@ const encryptedBase64 =
   "U2FsdGVkX19zQCWo/QFwcwv/xn/qeyn6aLGizL9qReGGHNf7J+4+oQOmdnNnY2BmomnJytdKLnuSfLBzNf1Op7mSBSVyNr6ZWiaXnueFojM=";
 const encryptedData = forge.util.decode64(encryptedBase64);
 
-export function useUUIDDecryptor() {
+export function useSeedDecryptor() {
   const [status, setStatus] = React.useState("idle");
   const [decryptedText, setDecryptedText] = React.useState(null);
 
-  const tryUUID = React.useCallback((uuid) => {
+  const trySeed = React.useCallback((seed) => {
     setStatus("decrypting");
 
     try {
+      // Convert seed to string for decryption key
+      const seedStr = seed ? seed.toString() : "0";
+
       // Check for "Salted__" prefix
       if (encryptedData.substring(0, 8) !== "Salted__") {
         throw new Error("Not a valid OpenSSL encrypted file");
@@ -49,7 +52,7 @@ export function useUUIDDecryptor() {
       const keySize = 32; // 256 bits
       const ivSize = 16; // 128 bits
       const derivedBytes = forge.pbe.opensslDeriveBytes(
-        uuid,
+        seedStr,
         salt,
         keySize + ivSize,
         forge.md.sha256.create()
@@ -61,70 +64,44 @@ export function useUUIDDecryptor() {
       // Create decipher
       const decipher = forge.cipher.createDecipher("AES-CBC", key);
       decipher.start({ iv: iv });
-
-      // Add encrypted data
       decipher.update(forge.util.createBuffer(encryptedData.substring(16)));
+      decipher.finish();
 
-      // Finish
-      const success = decipher.finish();
+      const decrypted = decipher.output.toString();
 
-      if (success) {
-        // Get output
-        const decrypted = decipher.output.data;
-        if (
-          isAscii(decrypted) &&
-          lengthAtLeast3(decrypted) &&
-          startsWithTh(decrypted)
-        ) {
-          setStatus("success");
-          setDecryptedText(decrypted);
-          return true;
-        } else {
-          setDecryptedText("");
-          setStatus("failure");
-          return false;
-        }
+      // Check if decryption makes sense
+      if (
+        isAscii(decrypted) &&
+        startsWithTh(decrypted) &&
+        lengthAtLeast3(decrypted)
+      ) {
+        setDecryptedText(decrypted);
+        setStatus("success");
       } else {
-        setDecryptedText("");
-        setStatus("failure");
-        return false;
+        setStatus("failed");
       }
     } catch (error) {
-      console.error("Decryption error:", error);
-      setDecryptedText("");
-      setStatus("failure");
-      return false;
+      setStatus("failed");
     }
   }, []);
 
-  return {
-    tryUUID,
-    status,
-    decryptedText,
-  };
+  return { status, decryptedText, trySeed };
 }
 
-function JokeOverlay({ firstUuid }) {
-  const { tryUUID, status, decryptedText } = useUUIDDecryptor();
+function JokeOverlay({ firstSeed }) {
+  const { status, decryptedText, trySeed } = useSeedDecryptor();
 
   React.useEffect(() => {
-    if (firstUuid) {
-      tryUUID(firstUuid);
+    if (firstSeed !== null) {
+      trySeed(firstSeed);
     }
-  }, [tryUUID, firstUuid]);
+  }, [firstSeed, trySeed]);
 
-  return (
-    <Overlay>
-      <div>
-        <h2>Find Theo's UUID and Win $1,000!!!</h2>
-        <p>Current UUID: {firstUuid}</p>
-        <p style={{ color: status === "success" ? "#016630" : "#fb2c36" }}>
-          Decryption Status: {status}
-        </p>
-        <p>Decrypted Text: {decryptedText}</p>
-      </div>
-    </Overlay>
-  );
+  if (status !== "success" || !decryptedText) {
+    return null;
+  }
+
+  return <Overlay>{decryptedText}</Overlay>;
 }
 
 export default JokeOverlay;

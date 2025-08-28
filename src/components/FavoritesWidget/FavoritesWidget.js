@@ -47,6 +47,7 @@ function FavoritesWidget({ setShowFavorites, isShowingFavorites }) {
           setShowFavorites((prev) => !prev);
         }}
         $isShowingFavorites={isShowingFavorites}
+        title={isShowingFavorites ? "Show all seeds" : "Show favorite seeds"}
       >
         <Star
           fill="var(--fill-color)"

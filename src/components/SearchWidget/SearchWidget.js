@@ -2,8 +2,8 @@ import React from "react";
 import styled from "styled-components";
 import UnstyledButton from "../UnstyledButton/UnstyledButton";
 import { X, ChevronUp, ChevronDown } from "../Icons/Icons";
-import { uuidToIndex } from "../../../lib/uuidTools";
-import { useUUIDSearch } from "../../../hooks/use-uuid-search";
+import { seedToIndex } from "../../../lib/seedTools";
+import { useSeedSearch } from "../../../hooks/use-seed-search";
 import { querySmallScreen, SCROLLBAR_WIDTH } from "../../../lib/constants";
 
 const Button = styled(UnstyledButton)`
@@ -143,18 +143,18 @@ function SearchWidget({
   }, []);
   const shiftIsHeldDown = useShiftIsHeldDown();
 
-  const { searchUUID, currentUUID, nextUUID, previousUUID } = useUUIDSearch({
-    displayedUUIDs,
+  const { searchSeed, currentSeed, nextSeed, previousSeed } = useSeedSearch({
+    displayedSeeds: displayedUUIDs,
     virtualPosition,
   });
   const index = React.useMemo(() => {
-    if (currentUUID) {
-      const index = uuidToIndex(currentUUID);
+    if (currentSeed) {
+      const index = seedToIndex(currentSeed);
 
       return index;
     }
     return null;
-  }, [currentUUID]);
+  }, [currentSeed]);
 
   React.useEffect(() => {
     if (index) {
@@ -210,28 +210,28 @@ function SearchWidget({
           onSubmit={(e) => {
             e.preventDefault();
             if (shiftIsHeldDown) {
-              previousUUID();
+              previousSeed();
             } else {
-              nextUUID();
+              nextSeed();
             }
           }}
         >
           <Input
             ref={inputRef}
             type="text"
-            placeholder="Search for a UUID"
+            placeholder="Search for a seed"
             value={search}
             onChange={(e) => {
-              setSearch(e.target.value.toLowerCase());
-              searchUUID(e.target.value.toLowerCase());
+              setSearch(e.target.value);
+              searchSeed(e.target.value);
             }}
           />
         </Form>
         <Line />
-        <Button onClick={() => previousUUID()}>
+        <Button onClick={() => previousSeed()}>
           <ChevronUp style={{ height: "100%", width: "100%" }} />
         </Button>
-        <Button onClick={() => nextUUID()}>
+        <Button onClick={() => nextSeed()}>
           <ChevronDown style={{ height: "100%", width: "100%" }} />
         </Button>
         <Button onClick={() => setSearchDisplayed(false)}>
