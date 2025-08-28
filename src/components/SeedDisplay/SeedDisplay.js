@@ -27,6 +27,10 @@ const BaseButton = styled(UnstyledButton)`
     background-color: transparent;
   }
 
+  &:selected {
+    background-color: transparent;
+  }
+
   user-select: none;
   -webkit-user-select: none;
   -moz-user-select: none;
@@ -48,6 +52,10 @@ const CopyButton = styled(BaseButton)`
 
   &:active {
     transform: scale(0.8);
+  }
+
+  @media ${queryVerySmallScreen} {
+    display: none;
   }
 `;
 
@@ -90,7 +98,7 @@ const Wrapper = styled.div`
   --text-size: 0.875rem;
 
   @media ${queryVerySmallScreen} {
-    --text-size: 0.75rem;
+    --text-size: 0.8rem;
   }
 `;
 
@@ -116,21 +124,17 @@ const RowWrapper = styled.div`
   border-bottom: 1px solid var(--border-color);
   height: ${ITEM_HEIGHT}px;
 
-  /* Removed CSS hover - now handled by JavaScript */
-  background-color: ${(props) => 
-    props.isHovered ? "var(--slate-400)" : props.rowBackground || "transparent"
-  };
-  transition: background-color 0.1s ease-in-out;
+  @media (hover: hover) {
+    &:hover {
+      background-color: var(--slate-400);
+    }
+  }
+
+  background-color: var(--row-background, transparent);
 
   @media ${querySmallScreen} {
-    grid-template-columns: repeat(2, fit-content(0));
-    grid-template-areas: "index copy favorite" "seed copy favorite";
-    grid-template-rows: 50% 50%;
-    height: ${ITEM_HEIGHT * 2}px;
-    justify-content: center;
-    gap: 0.25rem 0.5rem;
-    padding: 0.5rem 0;
-    margin-left: 0;
+    grid-template-areas: "index seed copy favorite copied";
+    grid-template-columns: repeat(5, fit-content(15px));
   }
 `;
 
@@ -148,7 +152,7 @@ const CopiedText = styled.div`
   animation: ${FadeOutDown} 0.6s ease-in both;
   user-select: none;
 
-  @media ${querySmallScreen} {
+  @media ${queryVerySmallScreen} {
     position: absolute;
     backdrop-filter: blur(10px);
     background-color: rgba(255, 255, 255, 0.8);
@@ -160,22 +164,24 @@ const CopiedText = styled.div`
   }
 `;
 
-const Index = styled.div`
-  grid-area: index;
-  color: var(--slate-600);
+const Index = styled.span`
+  opacity: 0.7;
   user-select: none;
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
-  cursor: default;
 `;
 
-const LeadingZeros = styled.span`
+const Padding = styled.span`
   opacity: 0.3;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 `;
 
-const ActualIndex = styled.span`
-  opacity: 0.7;
+const IndexWithPadding = styled.div`
+  display: inline-block;
 `;
 
 const Colon = styled.span`
@@ -208,18 +214,28 @@ const Highlight = styled.span`
   background-color: yellow;
 `;
 
-function SeedRow({ item, index, toggleFavedSeed, favedSeeds, isHovered, search, searchDisplayed }) {
-  const [justFaved, setJustFaved] = React.useState(false);
+function SeedRow({ item, index, toggleFavedSeed, favedSeeds, search, searchDisplayed }) {
+  const [justFaved, setJustFaved] = React.useState(null);
   const [mouseDown, setMouseDown] = React.useState(false);
   const [justCopied, setJustCopied] = React.useState(0);
   const timeoutRef = React.useRef(null);
 
-  const copyButtonRef = React.useRef();
-  const favoriteButtonRef = React.useRef();
-
   const { seed } = item;
   const seedStr = seed.toString();
   const isFaved = favedSeeds[seedStr] || false;
+
+  // Simple index formatting like UUIDDisplay
+  const indexString = index.toString();
+  const length = indexString.length;
+  const padLength = 20;
+  const paddingLength = padLength - length;
+  let padding;
+  if (paddingLength < 0) {
+    console.error("paddingLength < 0", indexString, length, padLength);
+    padding = "";
+  } else {
+    padding = "0".repeat(paddingLength);
+  }
 
   // Smart seed display formatting - leading zeros only when needed, with proper alignment
   const formattedSeed = React.useMemo(() => {
@@ -310,29 +326,6 @@ function SeedRow({ item, index, toggleFavedSeed, favedSeeds, isHovered, search, 
     }
   }
 
-  // Format index with leading zeros for consistent width
-  const formattedIndexParts = React.useMemo(() => {
-    const maxDigits = 20;
-    const indexStr = index.toString();
-    const paddedIndex = indexStr.padStart(maxDigits, '0');
-
-    // Find where the actual number starts (first non-zero digit)
-    const firstNonZeroIndex = paddedIndex.search(/[1-9]/);
-
-    if (firstNonZeroIndex === -1) {
-      // All zeros case
-      return {
-        leadingZeros: paddedIndex.slice(0, -1),
-        actualDigits: paddedIndex.slice(-1)
-      };
-    } else {
-      return {
-        leadingZeros: paddedIndex.slice(0, firstNonZeroIndex),
-        actualDigits: paddedIndex.slice(firstNonZeroIndex)
-      };
-    }
-  }, [index]);
-
   const handleCopy = React.useCallback(async () => {
     clearTimeout(timeoutRef.current);
     await navigator.clipboard
@@ -349,10 +342,16 @@ function SeedRow({ item, index, toggleFavedSeed, favedSeeds, isHovered, search, 
       });
   }, [seedStr]);
 
+  React.useEffect(() => {
+    if (justFaved && justFaved !== seedStr) {
+      setJustFaved(null);
+    }
+  }, [justFaved, seedStr]);
+
   const handleToggleFavorite = React.useCallback(() => {
     if (!isFaved) {
-      setJustFaved(true);
-      setTimeout(() => setJustFaved(false), 800);
+      setJustFaved(seedStr);
+      setTimeout(() => setJustFaved(null), 800);
     }
     toggleFavedSeed(seed);
   }, [seed, toggleFavedSeed, isFaved]);
@@ -382,19 +381,17 @@ function SeedRow({ item, index, toggleFavedSeed, favedSeeds, isHovered, search, 
       style={{
         backgroundColor: mouseDown ? "var(--slate-500)" : null,
       }}
-      isHovered={isHovered}
     >
-      <Index>
-        <LeadingZeros>{formattedIndexParts.leadingZeros}</LeadingZeros>
-        <ActualIndex>{formattedIndexParts.actualDigits}</ActualIndex>
-      </Index>
-      <Colon>:</Colon>
+      <IndexWithPadding style={{ gridArea: "index" }}>
+        <Padding>{padding}</Padding>
+        <Index>{indexString}</Index>
+      </IndexWithPadding>
+      <Colon />
       <Seed title={`Seed: ${seedStr}`}>
         {seedToDisplay}
       </Seed>
 
       <CopyButton
-        ref={copyButtonRef}
         $rowMouseDown={mouseDown}
         onClick={handleCopy}
         title="Copy seed to clipboard"
@@ -403,11 +400,14 @@ function SeedRow({ item, index, toggleFavedSeed, favedSeeds, isHovered, search, 
       </CopyButton>
 
       <FavoriteButton
-        ref={favoriteButtonRef}
         $isFaved={isFaved}
-        data-just-faved={justFaved}
-        onClick={handleToggleFavorite}
-        title={isFaved ? "Remove from favorites" : "Add to favorites"}
+        data-just-faved={isFaved && justFaved === seedStr}
+        onClick={() => {
+          if (!isFaved) {
+            setJustFaved(seedStr);
+          }
+          toggleFavedSeed(seed);
+        }}
       >
         <Star fill="var(--fill-color)" />
       </FavoriteButton>
@@ -432,150 +432,231 @@ function SeedDisplay({
   displayedSeeds,
 }) {
   const wrapperRef = React.useRef();
-  const [hoveredRowIndex, setHoveredRowIndex] = React.useState(null);
 
-  // Use a more stable key generation to reduce DOM churn
-  const stableDisplayedSeeds = React.useMemo(() => {
-    return displayedSeeds.map((item, idx) => ({
-      ...item,
-      stableKey: `${virtualPosition}-${idx}` // More stable key based on position
-    }));
-  }, [displayedSeeds, virtualPosition]);
-
-  // Throttle mouse move events to reduce hover state updates
-  const mouseMoveThrottleRef = React.useRef();
-  const handleMouseMove = React.useCallback((event) => {
-    if (mouseMoveThrottleRef.current) return;
-
-    mouseMoveThrottleRef.current = requestAnimationFrame(() => {
-      mouseMoveThrottleRef.current = null;
-
-      if (!wrapperRef.current) return;
-
-      const rect = wrapperRef.current.getBoundingClientRect();
-      const relativeY = event.clientY - rect.top;
-      const itemHeight = window.innerWidth <= 768 ? ITEM_HEIGHT * 2 : ITEM_HEIGHT;
-      const newHoveredIndex = Math.floor(relativeY / itemHeight);
-
-      // Only update if meaningfully different and within bounds
-      if (Math.abs(newHoveredIndex - (hoveredRowIndex ?? -1)) >= 1 &&
-          newHoveredIndex >= 0 &&
-          newHoveredIndex < displayedSeeds.length) {
-        setHoveredRowIndex(newHoveredIndex);
-      }
-    });
-  }, [hoveredRowIndex, displayedSeeds.length]);
-
-  // Clear hover when mouse leaves
-  const handleMouseLeave = React.useCallback(() => {
-    if (mouseMoveThrottleRef.current) {
-      cancelAnimationFrame(mouseMoveThrottleRef.current);
-      mouseMoveThrottleRef.current = null;
-    }
-    setHoveredRowIndex(null);
-  }, []);
-
-  // Optimize wheel handling for blazing fast scrolling
-  const handleWheel = React.useCallback(
-    (event) => {
-      if (isAnimating) return; // Only block during animations, allow scrolling during search
-
-      event.preventDefault();
-
-      // Direct deltaY usage like UUID implementation
+  const movePosition = React.useCallback(
+    (delta) => {
       setVirtualPosition((prev) => {
-        const delta = BigInt(Math.floor(event.deltaY));
         const newPos = prev + delta;
-        return newPos < 0n ? 0n : newPos > MAX_POSITION ? MAX_POSITION : newPos;
+        const ret =
+          newPos < 0n ? 0n : newPos > MAX_POSITION ? MAX_POSITION : newPos;
+        return ret;
       });
     },
-    [isAnimating, MAX_POSITION, setVirtualPosition] // Remove searchDisplayed from dependencies
+    [MAX_POSITION, setVirtualPosition]
   );
 
   const handleKeyDown = React.useCallback(
     (event) => {
       if (searchDisplayed) return;
+      if (isAnimating) return;
 
-      const step = event.shiftKey ? BigInt(itemsToShow) * 10n : BigInt(itemsToShow);
+      const e = event;
+      const PAGE_SIZE = BigInt(itemsToShow);
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+      const cmdKey = isMac ? e.metaKey : e.ctrlKey;
+      const shiftKey = e.shiftKey;
 
-      switch (event.key) {
-        case "ArrowDown":
-        case "j":
-          event.preventDefault();
-          const newPosDown = virtualPosition + step;
-          const clampedDown = newPosDown > MAX_POSITION ? MAX_POSITION : newPosDown;
-          animateToPosition(clampedDown);
-          break;
+      const handleAndPrevent = (action) => {
+        e.preventDefault();
+        action();
+      };
 
-        case "ArrowUp":
-        case "k":
-          event.preventDefault();
-          const newPosUp = virtualPosition - step;
-          const clampedUp = newPosUp < 0n ? 0n : newPosUp;
-          animateToPosition(clampedUp);
-          break;
+      const hasKeyAndModifier = (key, modifiers = []) => {
+        return e.key === key && modifiers.every((mod) => mod);
+      };
 
-        case "Home":
-          event.preventDefault();
-          animateToPosition(0n);
-          break;
+      const handleKeyAndPrevent = (key, modifiers = [], action) => {
+        if (hasKeyAndModifier(key, modifiers)) {
+          handleAndPrevent(action);
+          return true;
+        }
+        return false;
+      };
 
-        case "End":
-          event.preventDefault();
-          animateToPosition(MAX_POSITION);
+      const animateWithDelta = (delta) => {
+        let target = virtualPosition + delta;
+        if (target < 0n) {
+          target = 0n;
+        } else if (target > MAX_POSITION) {
+          target = MAX_POSITION;
+        }
+        animateToPosition(target);
+      };
+
+      switch (true) {
+        case handleKeyAndPrevent("ArrowDown", [cmdKey], () => {
+          animateWithDelta(MAX_POSITION);
+        }):
+          return;
+        case handleKeyAndPrevent("ArrowUp", [cmdKey], () =>
+          animateWithDelta(-MAX_POSITION)
+        ):
+          return;
+        case handleKeyAndPrevent(" ", [shiftKey], () => {
+          animateWithDelta(-PAGE_SIZE);
+        }):
+          return;
+        case handleKeyAndPrevent(" ", [], () => {
+          animateWithDelta(PAGE_SIZE);
+        }):
+          return;
+        case handleKeyAndPrevent("PageDown", [cmdKey], () => {
+          animateWithDelta(MAX_POSITION);
+        }):
+          return;
+        case handleKeyAndPrevent("PageUp", [cmdKey], () => {
+          animateWithDelta(0n);
+        }):
+          return;
+        case handleKeyAndPrevent("PageDown", [], () => {
+          animateWithDelta(PAGE_SIZE);
+        }):
+          return;
+        case handleKeyAndPrevent("PageUp", [], () => {
+          animateWithDelta(-PAGE_SIZE);
+        }):
+          return;
+        case handleKeyAndPrevent("Home", [], () => animateWithDelta(0n)):
+          return;
+        case handleKeyAndPrevent("End", [], () =>
+          animateWithDelta(MAX_POSITION)
+        ):
+          return;
+        case handleKeyAndPrevent("ArrowDown", [], () => movePosition(1n)):
+          return;
+        case handleKeyAndPrevent("ArrowUp", [], () => movePosition(-1n)):
+          return;
+        case handleKeyAndPrevent("j", [], () => movePosition(1n)):
+          return;
+        case handleKeyAndPrevent("k", [], () => movePosition(-1n)):
+          return;
+        default:
           break;
       }
     },
-    [virtualPosition, itemsToShow, MAX_POSITION, animateToPosition, searchDisplayed]
+    [virtualPosition, itemsToShow, MAX_POSITION, animateToPosition, searchDisplayed, isAnimating, movePosition]
   );
-
-  React.useEffect(() => {
-    const updateItemsToShow = () => {
-      const height = wrapperRef.current?.clientHeight || 600;
-      const itemHeight = window.innerWidth <= 768 ? ITEM_HEIGHT * 2 : ITEM_HEIGHT;
-      const newItemsToShow = Math.floor(height / itemHeight) + 5;
-      setItemsToShow(newItemsToShow);
-    };
-
-    updateItemsToShow();
-    window.addEventListener("resize", updateItemsToShow);
-    return () => window.removeEventListener("resize", updateItemsToShow);
-  }, [setItemsToShow]);
 
   React.useEffect(() => {
     wrapperRef.current?.focus();
   }, [virtualPosition]);
 
-  // Cleanup animation frame on unmount
   React.useEffect(() => {
+    if (wrapperRef.current === null) return;
+
+    const computeItemsToShow = () => {
+      const rect = wrapperRef.current.getBoundingClientRect();
+      const height = rect.height;
+      const items = Math.floor(height / ITEM_HEIGHT);
+      setItemsToShow(items);
+    };
+    computeItemsToShow();
+
+    window.addEventListener("resize", computeItemsToShow);
     return () => {
-      if (mouseMoveThrottleRef.current) {
-        cancelAnimationFrame(mouseMoveThrottleRef.current);
+      window.removeEventListener("resize", computeItemsToShow);
+    };
+  }, [setItemsToShow]);
+
+  React.useEffect(() => {
+    if (!wrapperRef.current) return;
+
+    const handleWheel = (e) => {
+      if (isAnimating) return;
+      e.preventDefault();
+      movePosition(BigInt(Math.floor(e.deltaY)));
+    };
+
+    wrapperRef.current.addEventListener("wheel", handleWheel, {
+      passive: false,
+    });
+
+    let lastTouchY = 0;
+    let lastTouchTime = 0;
+    let velocity = 0;
+    let animationFrame = null;
+
+    const applyMomentum = () => {
+      if (Math.abs(velocity) > 0.5) {
+        movePosition(BigInt(Math.floor(velocity)));
+        // Decay the velocity - play with these numbers to adjust the "feel"
+        velocity *= 0.95;
+        animationFrame = requestAnimationFrame(applyMomentum);
+      } else {
+        velocity = 0;
       }
     };
-  }, []);
+
+    const handleTouchStart = (e) => {
+      lastTouchY = e.touches[0].clientY;
+      lastTouchTime = Date.now();
+      velocity = 0;
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+      }
+    };
+
+    const handleTouchMove = (e) => {
+      e.preventDefault();
+      const touchY = e.touches[0].clientY;
+      const deltaY = lastTouchY - touchY;
+      const now = Date.now();
+      const deltaTime = now - lastTouchTime;
+
+      velocity = (deltaY / deltaTime) * 16.67;
+
+      lastTouchY = touchY;
+      lastTouchTime = now;
+
+      movePosition(BigInt(Math.floor(deltaY * 2)));
+    };
+
+    const handleTouchEnd = () => {
+      // Start momentum scrolling
+      if (Math.abs(velocity) > 0.5) {
+        animationFrame = requestAnimationFrame(applyMomentum);
+      }
+    };
+
+    wrapperRef.current.addEventListener("touchstart", handleTouchStart, {
+      passive: false,
+    });
+    wrapperRef.current.addEventListener("touchmove", handleTouchMove, {
+      passive: false,
+    });
+    wrapperRef.current.addEventListener("touchend", handleTouchEnd, {
+      passive: false,
+    });
+
+    return () => {
+      if (!wrapperRef.current) return;
+      wrapperRef.current.removeEventListener("wheel", handleWheel);
+      wrapperRef.current.removeEventListener("touchstart", handleTouchStart);
+      wrapperRef.current.removeEventListener("touchmove", handleTouchMove);
+      wrapperRef.current.removeEventListener("touchend", handleTouchEnd);
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+      }
+    };
+  }, [isAnimating, movePosition]);
 
   return (
     <Wrapper
       ref={wrapperRef}
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      onWheel={handleWheel}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
     >
       <List>
-        {stableDisplayedSeeds.map((item, idx) => {
+        {displayedSeeds.map((item, idx) => {
           if (!item) return null;
 
           return (
             <SeedRow
-              key={item.stableKey} // Use stable key to reduce DOM churn
+              key={item.index}
               item={item}
-              index={item.index} // Keep as BigInt instead of converting to Number
+              index={item.index}
               toggleFavedSeed={toggleFavedSeed}
               favedSeeds={favedSeeds}
-              isHovered={hoveredRowIndex === idx}
               search={search}
               searchDisplayed={searchDisplayed}
             />
@@ -587,3 +668,4 @@ function SeedDisplay({
 }
 
 export default SeedDisplay;
+

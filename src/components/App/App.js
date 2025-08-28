@@ -40,7 +40,7 @@ function App() {
   const [virtualPosition, setVirtualPosition] = React.useState(0n);
   const [isAnimating, setIsAnimating] = React.useState(false);
   const [targetPosition, setTargetPosition] = React.useState(null);
-  const [itemsToShow, setItemsToShow] = React.useState(40);
+  const [itemsToShow, setItemsToShow] = React.useState(38);
   const [search, setSearch] = React.useState("");
   const [searchDisplayed, setSearchDisplayed] = React.useState(false);
   const [showFavorites, _setShowFavorites] = React.useState(false);
