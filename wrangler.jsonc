@@ -1,0 +1,7 @@
+{
+  "name": "every-mc-seed",
+  "compatibility_date": "2025-08-28",
+  "assets": {
+    "directory": "./dist/"
+  }
+}
